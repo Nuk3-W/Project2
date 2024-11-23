@@ -71,14 +71,12 @@ class Cell(object):
 
 
     def process(self, adjacent_cells): # Step 2.3
-
         if self.state == "I":
             self.time += 1
             if self.time >= recovery_time:
                 self.recover()
-            return
-        
-        if self.state == "I":
+                return 
+       
             for i in adjacent_cells:
                 if i.state == "S" and random.random() <= virality:
                     i.infect()
