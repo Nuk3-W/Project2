@@ -1,8 +1,9 @@
 import random
-import csv
 import math
 from matplotlib import pyplot as plt
 import numpy as np
+import csv
+import time
 
 def image_example():
     '''should produce red,purple,green squares
@@ -47,14 +48,16 @@ def pdeath(x, mean, sd):
     return integral    
     
 recovery_time = 4 # recovery time in time-steps
-virality = 1    # probability that a neighbor cell is infected in 
-                  # each time step                                                  
+virality = 0.2  # probability that a neighbor cell is infected in 
+                  # each time step        
+mean = 4
+stdev = 1                                          
 
 class Cell(object):
 
     def __init__(self,x, y):
         self.x = int(x)
-        self.y = int(y) 
+        self.y = int(y)
         self.state = "S" # can be "S" (susceptible), "R" (resistant = dead), or 
                          # "I" (infected)
         self.time = 0
@@ -65,13 +68,27 @@ class Cell(object):
 
 
     def process(self, adjacent_cells): # Step 2.3
-        if self.time < 1 or not self.state == "I" :
-            self.time += 1
-            return
-        for i in adjacent_cells:
-            if i.state == "S" and random.random() <= virality:
-                i.infect()
+        if self.state == "I" and self.time >= 1:
+            if self.time == recovery_time:
+                self.state = "S"
+                self.time == 0
+            elif random.random() <= pdeath(self.time, mean, stdev): #The disease isn't spreading, they die instantly
+                self.state = "R"    
+                self.time = 0
+            else:
+                for i in adjacent_cells:
+                    if i.state == "S" and random.random() <= virality:
+                        i.infect()
+
                     
+                self.time += 1
+        
+        else:
+            self.time += 1
+        
+    
+    
+    
         
 class Map(object):
     
@@ -92,43 +109,50 @@ class Map(object):
                 image[i[0], i[1]] = np.array([0.5,0.5,0.5])
             elif self.cells[i].state == "I":
                 image[i[0], i[1]] = np.array([1.0,0.0,0.0])
-        
 
-        plt.imshow(image)  # display the map
+        
+        #plt.imshow(image)  # display the map
+        
+        #Nice feature for live updates
+        
+        plt.clf()
+        plt.imshow(image)
+        plt.axis('off')
+        plt.pause(0.0001)
+            
+    
+    def adjacent_cells(self, x,y): # Step 2.2
+        adjacentCells = []
+        directions = [(-1, 0), (1, 0), (0, -1), (0, 1)] 
+        for dx, dy in directions:
+            nx, ny = x + dx, y + dy
+            if (nx, ny) in self.cells:
+                adjacentCells.append(self.cells[(nx, ny)])
+        return adjacentCells
     
     def time_step(self):
         for i in self.cells.values():
             i.process(self.adjacent_cells(i.x, i.y))
         self.display()
-        
-    def adjacent_cells(self, x, y): # Step 2.2
-        adjacentCells = []
-        if (x, y+1) in self.cells.keys(): #Just realized you dont actually need to care about y == 0 because it shouldn't have a key at that point anyway
-            adjacentCells.append(self.cells[(x, y+1)])
-        if (x, y-1) in self.cells.keys(): 
-            adjacentCells.append(self.cells[(x, y-1)])
-        if (x+1, y) in self.cells.keys(): 
-            adjacentCells.append(self.cells[(x+1, y)])
-        if (x-1, y) in self.cells.keys(): 
-            adjacentCells.append(self.cells[(x-1, y)])
-        
-        return adjacentCells
-            
-            
 
+            
 def read_map(filename):
-    m = Map()
-    file = open(filename, "r")
-    data_reader = csv.reader(file)
-    for line in data_reader:
-        m.add_cell(Cell(line[0], line[1])) #idk why but this legit only works with csvreader for me was using for line in file
     
-    file.close()
+    m = Map()
+    
+    with open(filename, "r") as f:
+        data_reader = csv.reader(f)
+        for i in data_reader:
+            m.add_cell(Cell(i[0], i[1]))
+    
     return m
 
 
-
-"""if __name__ == "__main__":
-    image = read_map("nyc_map.csv")
+if __name__ == "__main__":
+    image = read_map("/Users/suwaidi/Downloads/nyc_map.csv")
     image.display()
-"""
+    image.cells[ (39, 82)].infect()
+    for i in range(100):
+        image.time_step()
+        time.sleep(0.2)
+        
